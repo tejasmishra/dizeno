@@ -4,7 +4,7 @@
  * Plugin URI: 
  * Description: A brief description of the plugin.
  * Version: 1.0.0
- * Author: Tejas Mishra
+ * Author: Tejas H Mishra
  * Author URI: 
  * Text Domain: Optional. Plugin's text domain for localization. Example: mytextdomain
  * Domain Path: Optional. Plugin's relative directory path to .mo files. Example: /locale/
