@@ -19,7 +19,7 @@
  */
 
 
-
+require_once(ABSPATH . 'wp-content/plugins/dizeno/dizeno-structure.php');
 
 function dizeno_activate() {
     global $wpdb;
@@ -28,12 +28,12 @@ function dizeno_activate() {
     if( $wpdb->get_var('SHOW TABLES LIKE ' . $table_name) != $table_name ) {
         $sql = 'CREATE TABLE ' . $table_name . '('
                 . 'id BIGINT(20) UNSIGNED AUTO_INCREMENT, '
-                . 'layout_header VARCHAR(255), '
+                . 'layout VARCHAR(255) NOT NULL, '
                 . 'PRIMARY KEY (id) ) DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci';
-        
+        $default_layout = 'full-boxed';
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
-        
+        $wpdb->insert($table_name, array('layout'=>  strtolower($default_layout))); 
         add_option('dizeno_database_version','1.0');
     }
 
@@ -73,6 +73,7 @@ function register_dizeno_settings_page() {
     //add_menu_page( $page_title, $menu_title, $capability, $menu_slug, $function, $icon_url, $position );
     add_menu_page( 'Dizeno', 'Dizeno', 'manage_options', 'dizeno-settings', 'dizeno_settings_page', 'dashicons-admin-generic', 4 );
     //add_submenu_page( $parent_slug, $page_title, $menu_title, $capability, $menu_slug, $function );
+    add_submenu_page( 'dizeno-settings', 'Add Post Type', 'Add Post Type', 'manage_options', 'add_post_type', 'add_post_type_page' );   
     add_submenu_page( 'dizeno-settings', 'Settings', 'Settings', 'manage_options', 'post_type_settings', 'post_type_settings_page' );   
 }
 
@@ -88,41 +89,13 @@ function dizeno_settings_page() {
     $post_type_table_name = $wpdb->prefix . "post_type";
     
     isset ( $_GET['tab'] )  ? $current_tab = $_GET['tab'] : $current_tab = 'post-type';
-    if(isset($_POST[layout_header])) {
-        $layout_header = $_POST[layout_header];
-        $wpdb->update($table_name, array('layout_header'=>$layout_header),array('id'=>1));
+    if(isset($_GET['layout'])) {
+        $layout = $_GET['layout'];
+        $wpdb->update($table_name, array('layout'=>$layout),array('id'=>1));
+        $current_tab = 'general';
+        //layout_builder();
     }
-    if(isset($_POST['post_title'])) {
-        $post_title = $_POST['post_title'];
-        $dizeno_post_type = $_POST['dizeno_post_type'];
-        $dizeno_category_list = $_POST['dizeno_category_list'];
-        $dizeno_tag_list = $_POST['dizeno_tag_list'];
-        if (isset($_POST['dizeno_category']) && $_POST['dizeno_category'] == 'on') {
-            $dizeno_category = 'Yes';
-            $dizeno_category_list = $_POST['dizeno_category_list'];
-        } else {
-            $dizeno_category = 'No';
-            $dizeno_category_list = '';
-        }
-
-        if (isset($_POST['dizeno_tag']) && $_POST['dizeno_tag'] == 'on') {
-            $dizeno_tag = 'Yes';
-            $dizeno_tag_ist = $_POST['dizeno_tag_ist'];
-        } else {
-            $dizeno_tag = 'No';
-            $dizeno_tag_ist = '';
-        }
-        $wpdb->insert($post_type_table_name, array(
-                                                'title'=>$post_title, 
-                                                'post_type_slug'=>  strtolower($post_title),
-                                                'dizeno_post_type' => strtolower($dizeno_post_type),
-                                                'dizeno_category' => $dizeno_category,
-                                                'dizeno_category_list' => $dizeno_category_list,
-                                                'dizeno_tag' => $dizeno_tag,
-                                                'dizeno_tag_list' => $dizeno_tag_list
-                                            )
-                    ); 
-    }
+    
     
     
     //Create an instance of our package class...
@@ -135,8 +108,12 @@ function dizeno_settings_page() {
             <h2>Dizeno</h2>
             <p>Welcome to the Dizeno Settings Page. Here you can configure settings as your need.</p>
             <div id="col-container">
-                <div id="col-right">
-                    <div class="col-wrap">
+                <div id="">
+                    <!-- <div class="col-wrap">
+                    </div> -->
+                </div>
+                <div id="">
+                    <div class="">
                         <?php $tabs = array( 'post-type' => 'Post Types', 'general' => 'General', 'footer' => 'Footer' ); ?>
                         <div id="icon-themes" class="icon32"><br></div>
                         <h2 class="nav-tab-wrapper">
@@ -149,7 +126,7 @@ function dizeno_settings_page() {
                         
                         <form  method='get'>
                             <input type="hidden" name="page" value="<?php echo $_REQUEST['page'] ?>"/>
-                            <?php $selected_layout = $wpdb->get_var( 'SELECT layout_header FROM '. $table_name . ' WHERE id=1'); ?>
+                            <?php $selected_layout = $wpdb->get_var( 'SELECT layout FROM '. $table_name . ' WHERE id=1'); ?>
                             <table class="form-table">
                                 <?php switch ( $current_tab ){
                                     case 'post-type' :
@@ -162,13 +139,13 @@ function dizeno_settings_page() {
                                     case 'general' :
                                         ?>
                                         <tr>
-                                            <th>Header Position:</th>
+                                            <th>Layout:</th>
                                             <td>
-                                                <input type="radio" name="layout_header" value="header-top-full" id="header-top-full" <?php if($selected_layout == 'header-top-full') echo 'checked'; ?> ><label for="header-top-full">Top Full</label>
+                                                <input type="radio" name="layout" value="full" id="full" <?php if($selected_layout == 'full') echo 'checked'; ?> ><label for="full">Full</label>
                                                 <br><br>
-                                                <input type="radio" name="layout_header" value="header-top-box" id="header-top-box" <?php if($selected_layout == 'header-top-box') echo 'checked'; ?> ><label for="header-top-box">Top Boxed</label>
+                                                <input type="radio" name="layout" value="boxed" id="boxed" <?php if($selected_layout == 'boxed') echo 'checked'; ?> ><label for="boxed">Boxed</label>
                                                 <br><br>
-                                                <input type="radio" name="layout_header" value="header-bottom-full" id="header-bottom-full" <?php if($selected_layout == 'header-bottom-full') echo 'checked'; ?> ><label for="header-bottom-full">Bottom Full</label>
+                                                <input type="radio" name="layout" value="full-boxed" id="full-boxed" <?php if($selected_layout == 'full-boxed') echo 'checked'; ?> ><label for="full-boxed">Full Boxed</label>
                                            </td>
                                         </tr>
                                         <?php
@@ -191,54 +168,91 @@ function dizeno_settings_page() {
                         </form> 
                     </div>
                 </div>
-                <div id="col-left">
-                    <div class="col-wrap">
-                            <h3><span>Add New Post Type</span></h3>
-                            <div class="form-wrap inside">
-                                <form action='?page=dizeno-settings&tab=post-type' method='post' >
-                                    <div class="form-field term-name-wrap">
-                                        <label for="post_type_name">Post Name:</label>
-                                        <input type="text" name="post_title" id="post-title">
-                                        <p>The name of your product or post type.</p>
-                                    </div>
-                                    <div class="form-field term-type-wrap">
-                                        <label for="dizeno_post_type">Post Type:</label>
-                                        <select id="dizeno_post_type" name="dizeno_post_type">
-                                            <option value="product" selected="selected">Product</option>
-                                            <option value="place">Place</option>
-                                            <option value="event">Event</option>
-                                        </select>
-                                        <p>The name of your product or post type.</p>
-                                    </div>
-                                    <div class="form-field term-taxonomy-wrap">
-                                        <label for="dizeno_post_type_taxonomy">Add Taxonomy:</label>
-                                        <ul>
-                                            <li id="dizeno_category_li">
-                                                <label><input type="checkbox" id="dizeno_category" name="dizeno_category" <?php if($post_type_edit['dizeno_category'] == 'Yes') { echo "checked"; }  ?>> Category</label>
-                                                <div>
-                                                    <input type="text" name="dizeno_category_list" id="dizeno_category_list">
-                                                    <p>It will create default category. If you want to add custom category then type in this text box and separate custom category (non hierarchical list) with commas.</p>
-                                                </div>
-                                            </li>
-                                            <li id="dizeno_tag_li">
-                                                <label><input type="checkbox" id="dizeno_tag" name="dizeno_tag" <?php if($post_type_edit['dizeno_tag'] == 'Yes') { echo "checked"; }  ?>> Tag</label>
-                                                <div>
-                                                    <input type="text" name="dizeno_tag_list" id="dizeno_tag_list">
-                                                    <p>It will create default tag. If you want to add custom tag then type in this text box and separate custom tags (hierarchical list) with commas.</p>
-                                                </div>                                            
-                                            </li>
-                                        </ul>
-                                        <p>The name of your product or post type.</p>
-                                    </div>
-                                    <input type="submit" name="submit" value="Add" class="button button-primary">
-                                </form>
-                            </div>
-                    </div>
-                </div>
             </div>
         </div>
 
         
+<?php
+}
+
+
+function add_post_type_page() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . "dizeno";
+    $post_type_table_name = $wpdb->prefix . "post_type";
+
+    if(isset($_POST['post_title'])) {
+        $post_title = $_POST['post_title'];
+        $dizeno_post_type = $_POST['dizeno_post_type'];
+        $dizeno_category_list = $_POST['dizeno_category_list'];
+        $dizeno_tag_list = $_POST['dizeno_tag_list'];
+        if (isset($_POST['dizeno_category']) && $_POST['dizeno_category'] == 'on') {
+            $dizeno_category = 'Yes';
+            $dizeno_category_list = $_POST['dizeno_category_list'];
+        } else {
+            $dizeno_category = 'No';
+            $dizeno_category_list = '';
+        }
+
+        if (isset($_POST['dizeno_tag']) && $_POST['dizeno_tag'] == 'on') {
+            $dizeno_tag = 'Yes';
+            $dizeno_tag_list = $_POST['dizeno_tag_list'];
+        } else {
+            $dizeno_tag = 'No';
+            $dizeno_tag_list = '';
+        }
+        $wpdb->insert($post_type_table_name, array(
+                                                'title'=>$post_title, 
+                                                'post_type_slug'=>  strtolower($post_title),
+                                                'dizeno_post_type' => strtolower($dizeno_post_type),
+                                                'dizeno_category' => $dizeno_category,
+                                                'dizeno_category_list' => $dizeno_category_list,
+                                                'dizeno_tag' => $dizeno_tag,
+                                                'dizeno_tag_list' => $dizeno_tag_list
+                                            )
+                    ); 
+    }
+?>
+    <h3><span>Add New Post Type</span></h3>
+    <div class="form-wrap inside">
+        <form action='?page=add_post_type' method='post' >
+            <div class="form-field term-name-wrap">
+                <label for="post_type_name">Post Name:</label>
+                <input type="text" name="post_title" id="post-title">
+                <p>The name of your product or post type.</p>
+            </div>
+            <div class="form-field term-type-wrap">
+                <label for="dizeno_post_type">Post Type:</label>
+                <select id="dizeno_post_type" name="dizeno_post_type">
+                    <option value="product" selected="selected">Product</option>
+                    <option value="place">Place</option>
+                    <option value="event">Event</option>
+                </select>
+                <p>The name of your product or post type.</p>
+            </div>
+            <div class="form-field term-taxonomy-wrap">
+                <label for="dizeno_post_type_taxonomy">Add Taxonomy:</label>
+                <ul>
+                    <li id="dizeno_category_li">
+                        <label><input type="checkbox" id="dizeno_category" name="dizeno_category" <?php if($post_type_edit['dizeno_category'] == 'Yes') { echo "checked"; }  ?>> Category</label>
+                        <div>
+                            <input type="text" name="dizeno_category_list" id="dizeno_category_list">
+                            <p>It will create default category. If you want to add custom category then type in this text box and separate custom category (non hierarchical list) with commas.</p>
+                        </div>
+                    </li>
+                    <li id="dizeno_tag_li">
+                        <label><input type="checkbox" id="dizeno_tag" name="dizeno_tag" <?php if($post_type_edit['dizeno_tag'] == 'Yes') { echo "checked"; }  ?>> Tag</label>
+                        <div>
+                            <input type="text" name="dizeno_tag_list" id="dizeno_tag_list">
+                            <p>It will create default tag. If you want to add custom tag then type in this text box and separate custom tags (hierarchical list) with commas.</p>
+                        </div>                                            
+                    </li>
+                </ul>
+                <p>The name of your product or post type.</p>
+            </div>
+            <input type="submit" name="submit" value="Add" class="button button-primary">
+        </form>
+    </div>
 <?php
 }
 
@@ -268,10 +282,10 @@ function post_type_settings_page() {
 
         if (isset($_POST['dizeno_tag']) && $_POST['dizeno_tag'] == 'on') {
             $dizeno_tag = 'Yes';
-            $dizeno_tag_ist = $_POST['dizeno_tag_ist'];
+            $dizeno_tag_list = $_POST['dizeno_tag_list'];
         } else {
             $dizeno_tag = 'No';
-            $dizeno_tag_ist = '';
+            $dizeno_tag_list = '';
         }
         
         $wpdb->update( $post_type_table_name, array('title'=>$post_type_name,  
@@ -296,80 +310,86 @@ function post_type_settings_page() {
             <h2>Settings</h2>
             <br class="clear">
             <div id="col-container">
-                <div id="col-right"></div>
+                <div id="col-right">
+                    
+
+                </div>
                 <div id="col-left">
                     <div class="col-wrap">
-                        <div class="form-wrap">
-                            <h3>Edit Post Type</h3>
-                            <form action="?page=post_type_settings&id=<?php echo $id; ?>" method='post' >
-                                <div class="form-field term-name-wrap">
-                                    <label for="post_type_name">Name</label>
-                                    <input id="post_type_name" type="text" size="40" value="<?php echo $post_type_edit['title']; ?>" name="post_type_name">
-                                    <p>The name of your product or post type.</p>
-                                </div>
-                                
-                                <div class="form-field term-slug-wrap">
-                                    <label for="post_type_slug">Slug</label>
-                                    <input type="text" size="40" value="<?php echo $post_type_edit['post_type_slug']; ?>" id="post_type_slug" name="post_type_slug">
-                                    <p>The “slug” is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.</p>
-                                </div>
-                                
-                                <div class="form-field term-type-wrap">
-                                    <label for="dizeno_post_type">Post Type</label>
-                                    <select id="dizeno_post_type" name="dizeno_post_type">
-                                        <?php 
-                                            if($post_type_edit['dizeno_post_type'] == '') {
-                                                echo '<option value="product" selected>Product</option>';
-                                                echo '<option value="place">Place</option>';
-                                                echo '<option value="event">Event</option>';
-                                            }
-                                            else {?>
-                                                <option value="<?php echo $post_type_edit['dizeno_post_type']; ?>" selected="selected"><?php echo $post_type_edit['dizeno_post_type']; ?></option>
-                                           <?php }
-                                        ?>
-                                        
-                                        <?php 
-                                            if($post_type_edit['dizeno_post_type'] == 'product') {
-                                                echo '<option value="place">Place</option>';
-                                                echo '<option value="event">Event</option>';
-                                            } elseif ($post_type_edit['dizeno_post_type'] == 'place') {
-                                                echo '<option value="product">Product</option>';
-                                                echo '<option value="event">Event</option>';
-                                            } elseif ($post_type_edit['dizeno_post_type'] == 'event') {
-                                                echo '<option value="product">Product</option>';
-                                                echo '<option value="event">Place</option>';
-                                            }
-                                        ?>
-                                    </select>
-                                    <p>The “slug” is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.</p>
-                                </div>
 
-                                <div class="form-field term-taxonomy-wrap">
-                                    <label for="dizeno_post_type_taxonomy">Add Taxonomy:</label>
-                                    <ul>
-                                        <li id="dizeno_category_li">
-                                            <label><input type="checkbox" id="dizeno_category" name="dizeno_category" <?php if($post_type_edit['dizeno_category'] == 'Yes') { echo "checked"; }  ?>> Category</label>
-                                            <div>
-                                                <input type="text" name="dizeno_category_list" id="dizeno_category_list" value="<?php echo $post_type_edit['dizeno_category_list']; ?>">
-                                                <p>It will create default category. If you want to add custom category then type in this text box and separate custom category (non hierarchical list) with commas.</p>
-                                            </div>
-                                        </li>
-                                        <li id="dizeno_tag_li">
-                                            <label><input type="checkbox" id="dizeno_tag" name="dizeno_tag" <?php if($post_type_edit['dizeno_tag'] == 'Yes') { echo "checked"; }  ?>> Tag</label>
-                                            <div>
-                                                <input type="text" name="dizeno_tag_list" id="dizeno_tag_list" value="<?php echo $post_type_edit['dizeno_tag_list']; ?>">
-                                                <p>It will create default tag. If you want to add custom tag then type in this text box and separate custom tags (hierarchical list) with commas.</p>
-                                            </div>                                            
-                                        </li>
-                                    </ul>
-                                    <p>The name of your product or post type.</p>
-                                </div>
-                                <input type="hidden" name="save" value="save"/>
-                                <input type="submit" name="submit" value="Save" class="button button-primary">
-                                <a href="?page=dizeno-settings" class="button button-secondary">Back</a>
-                            </form>
-                            
-                        </div>
+                        <?php if(isset($_GET['action']))  { ?>
+                            <div class="form-wrap">
+                                <h3>Edit Post Type</h3>
+                                <form action="?page=post_type_settings&id=<?php echo $id; ?>" method='post' >
+                                    <div class="form-field term-name-wrap">
+                                        <label for="post_type_name">Name</label>
+                                        <input id="post_type_name" type="text" size="40" value="<?php echo $post_type_edit['title']; ?>" name="post_type_name">
+                                        <p>The name of your product or post type.</p>
+                                    </div>
+                                    
+                                    <div class="form-field term-slug-wrap">
+                                        <label for="post_type_slug">Slug</label>
+                                        <input type="text" size="40" value="<?php echo $post_type_edit['post_type_slug']; ?>" id="post_type_slug" name="post_type_slug">
+                                        <p>The “slug” is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.</p>
+                                    </div>
+                                    
+                                    <div class="form-field term-type-wrap">
+                                        <label for="dizeno_post_type">Post Type</label>
+                                        <select id="dizeno_post_type" name="dizeno_post_type">
+                                            <?php 
+                                                if($post_type_edit['dizeno_post_type'] == '') {
+                                                    echo '<option value="product" selected>Product</option>';
+                                                    echo '<option value="place">Place</option>';
+                                                    echo '<option value="event">Event</option>';
+                                                }
+                                                else {?>
+                                                    <option value="<?php echo $post_type_edit['dizeno_post_type']; ?>" selected="selected"><?php echo $post_type_edit['dizeno_post_type']; ?></option>
+                                               <?php }
+                                            ?>
+                                            
+                                            <?php 
+                                                if($post_type_edit['dizeno_post_type'] == 'product') {
+                                                    echo '<option value="place">Place</option>';
+                                                    echo '<option value="event">Event</option>';
+                                                } elseif ($post_type_edit['dizeno_post_type'] == 'place') {
+                                                    echo '<option value="product">Product</option>';
+                                                    echo '<option value="event">Event</option>';
+                                                } elseif ($post_type_edit['dizeno_post_type'] == 'event') {
+                                                    echo '<option value="product">Product</option>';
+                                                    echo '<option value="event">Place</option>';
+                                                }
+                                            ?>
+                                        </select>
+                                        <p>The “slug” is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.</p>
+                                    </div>
+
+                                    <div class="form-field term-taxonomy-wrap">
+                                        <label for="dizeno_post_type_taxonomy">Add Taxonomy:</label>
+                                        <ul>
+                                            <li id="dizeno_category_li">
+                                                <label><input type="checkbox" id="dizeno_category" name="dizeno_category" <?php if($post_type_edit['dizeno_category'] == 'Yes') { echo "checked"; }  ?>> Category</label>
+                                                <div>
+                                                    <input type="text" name="dizeno_category_list" id="dizeno_category_list" value="<?php echo $post_type_edit['dizeno_category_list']; ?>">
+                                                    <p>It will create default category. If you want to add custom category then type in this text box and separate custom category (non hierarchical list) with commas.</p>
+                                                </div>
+                                            </li>
+                                            <li id="dizeno_tag_li">
+                                                <label><input type="checkbox" id="dizeno_tag" name="dizeno_tag" <?php if($post_type_edit['dizeno_tag'] == 'Yes') { echo "checked"; }  ?>> Tag</label>
+                                                <div>
+                                                    <input type="text" name="dizeno_tag_list" id="dizeno_tag_list" value="<?php echo $post_type_edit['dizeno_tag_list']; ?>">
+                                                    <p>It will create default tag. If you want to add custom tag then type in this text box and separate custom tags (hierarchical list) with commas.</p>
+                                                </div>                                            
+                                            </li>
+                                        </ul>
+                                        <p>The name of your product or post type.</p>
+                                    </div>
+                                    <input type="hidden" name="save" value="save"/>
+                                    <input type="submit" name="submit" value="Save" class="button button-primary">
+                                    <a href="?page=dizeno-settings" class="button button-secondary">Back</a>
+                                </form>
+                                
+                            </div>
+                        <?php } ?>
                     </div>
                 </div>
             </div>
@@ -387,7 +407,7 @@ function post_type_settings_page() {
 
 
 
-add_action('init', 'dizeno_create_custom_post_type_init',1);
+
 function dizeno_create_custom_post_type_init() {
     global $wpdb;
     $post_type_table_name = $wpdb->prefix . "post_type";
@@ -398,36 +418,210 @@ function dizeno_create_custom_post_type_init() {
     
     foreach ($create_post_type_titles as $post_title) {
         $custom_post_type_labels = array(
-            'name' => _x($post_title, 'post type general name'),
-            'singular_name' => _x($post_title, 'post type singular name'),
-            'all_items' => __('All '. $post_title),
-            'add_new' => _x('Add new '. strtolower($post_title), strtolower($post_title)),
-            'add_new_item' => __('Add new '.strtolower($post_title)),
-            'edit_item' => __('Edit '.strtolower($post_title)),
-            'new_item' => __('New '.strtolower($post_title)),
-            'view_item' => __('View '.strtolower($post_title)),
-            'search_items' => __('Search in '.strtolower($post_title)),
-            'not_found' =>  __('No '.strtolower($post_title).' found'),
-            'not_found_in_trash' => __('No '.strtolower($post_title).' found in trash'), 
-            'parent_item_colon' => ''
+            'name'                  => _x($post_title, 'post type general name'),
+            'singular_name'         => _x($post_title, 'post type singular name'),
+            'all_items'             => __('All '. $post_title),
+            'add_new'               => _x('Add new '. strtolower($post_title), strtolower($post_title)),
+            'add_new_item'          => __('Add new '.strtolower($post_title)),
+            'edit_item'             => __('Edit '.strtolower($post_title)),
+            'new_item'              => __('New '.strtolower($post_title)),
+            'view_item'             => __('View '.strtolower($post_title)),
+            'search_items'          => __('Search in '.strtolower($post_title)),
+            'not_found'             =>  __('No '.strtolower($post_title).' found'),
+            'not_found_in_trash'    => __('No '.strtolower($post_title).' found in trash'), 
+            'parent_item_colon'     => ''
         );
         $args = array(
-                'labels' => $custom_post_type_labels,
-                'public' => true,
-                'publicly_queryable' => true,
-                'show_ui' => true, 
-                'query_var' => true,
-                'rewrite' => true,
-                'capability_type' => 'post',
-                'hierarchical' => false,
-                'menu_position' => 5,
-                'supports' => array('title','editor','author','thumbnail','excerpt','comments','custom-fields'),
-		'has_archive' => 'archive-name'
+                'labels'                => $custom_post_type_labels,
+                'public'                => true,
+                'publicly_queryable'    => true,
+                'show_ui'               => true,
+                'show_in_menu'          => true, 
+                'menu_position'         => 5,
+                'menu_icon'             => 'dashicons-admin-post',
+                'query_var'             => true,
+                'rewrite'               => array('slug' => strtolower($post_title)),
+                'capability_type'       => 'post',
+                'has_archive'           => true,
+                'hierarchical'          => false,
+                'supports'              => array('title','editor','author','thumbnail','excerpt','comments','custom-fields'),
+                
         ); 
         register_post_type($post_title,$args);
     }
+}
+add_action('init', 'dizeno_create_custom_post_type_init',1);
+function my_rewrite_flush() {
+    // First, we "add" the custom post type via the above written function.
+    // Note: "add" is written with quotes, as CPTs don't get added to the DB,
+    // They are only referenced in the post_type column with a post entry, 
+    // when you add a post of this CPT.
+    dizeno_create_custom_post_type_init();
+    dizeno_create_taxonomies();
+
+    // ATTENTION: This is *only* done during plugin activation hook in this example!
+    // You should *NEVER EVER* do this on every page load!!
+    flush_rewrite_rules();
+}
+register_activation_hook( __FILE__, 'my_rewrite_flush' );
+
+// Add custom taxonomies
+add_action( 'init', 'dizeno_create_taxonomies',2);
+
+function dizeno_create_taxonomies() {
+        global $wpdb;
+        $post_type_table_name = $wpdb->prefix . "post_type";
+
+        // default category
+        $create_taxonomy_titles = $wpdb->get_col("SELECT title FROM ". $post_type_table_name ." WHERE dizeno_category='Yes'");
+        for ($i=0; $i < count($create_taxonomy_titles); $i++) { 
+            foreach ($create_taxonomy_titles as $taxonomy_title_default) {
+                $taxonomy_title_lower = strtolower($taxonomy_title_default);
+                $category_labels = array(
+                    'name' => _x( $taxonomy_title_default.' Category', 'taxonomy general name' ),
+                    'singular_name' => _x( $taxonomy_title_default.' Category', 'taxonomy singular name' ),
+                    'search_items' =>  __( 'Search in '.$taxonomy_title_lower.' category' ),
+                    'all_items' => __( 'All '.$taxonomy_title_lower.' category' ),
+                    'most_used_items' => null,
+                    'parent_item' => null,
+                    'parent_item_colon' => null,
+                    'edit_item' => __( 'Edit '.$taxonomy_title_lower.' category' ), 
+                    'update_item' => __( 'Update '.$taxonomy_title_lower.' category' ),
+                    'add_new_item' => __( 'Add new '.$taxonomy_title_lower.' category' ),
+                    'new_item_name' => __( 'New '.$taxonomy_title_lower.' category' ),
+                    'menu_name' => __( $taxonomy_title_default.' Category' ),
+                );  
+                register_taxonomy($taxonomy_title_lower.'-category',$taxonomy_title_lower,array(
+                    'hierarchical' => true,
+                    'labels' => $category_labels,
+                    'show_admin_column' => true,
+                    'show_ui' => true,
+                    'query_var' => true,
+                    'rewrite' => array('slug' => $taxonomy_title_lower.'-category' )
+                ));
+            }
+        }
+
+        // Custom category
+        $cat_titles = $wpdb->get_results("SELECT title, dizeno_category_list FROM ". $post_type_table_name ." WHERE   dizeno_category='Yes'");
+        $cat_titles = json_decode(json_encode($cat_titles),true);
+        for ($i=0; $i < count($cat_titles); $i++) { 
+                $taxonomy_title = $cat_titles[$i]['title'];
+
+                $cat_array = explode(",", $cat_titles[$i]['dizeno_category_list']);
+                for ($j=0; $j < count($cat_array); $j++) {
+                    $cat = $cat_array[$j];
+                    if ($cat!='') {
+                        $taxonomy_title_lower = strtolower($taxonomy_title);
+                        $taxonomy_cat_lower = strtolower($cat);
+
+                        $category_labels = array(
+                            'name' => _x( $cat.' Category', 'taxonomy general name' ),
+                            'singular_name' => _x( $cat.' Category', 'taxonomy singular name' ),
+                            'search_items' =>  __( 'Search in '.$taxonomy_cat_lower.' category' ),
+                            'all_items' => __( 'All '.$taxonomy_cat_lower.' category' ),
+                            'most_used_items' => null,
+                            'parent_item' => null,
+                            'parent_item_colon' => null,
+                            'edit_item' => __( 'Edit '.$taxonomy_cat_lower.' category' ), 
+                            'update_item' => __( 'Update '.$taxonomy_cat_lower.' category' ),
+                            'add_new_item' => __( 'Add new '.$taxonomy_cat_lower.' category' ),
+                            'new_item_name' => __( 'New '.$taxonomy_cat_lower.' category' ),
+                            'menu_name' => __( $cat.' Category' ),
+                        );  
+                        register_taxonomy($taxonomy_cat_lower.'-category',$taxonomy_title_lower,array(
+                            'hierarchical' => true,
+                            'labels' => $category_labels,
+                            'show_admin_column' => true,
+                            'show_ui' => true,
+                            'query_var' => true,
+                            'rewrite' => array('slug' => $taxonomy_cat_lower.'-category' )
+                        ));
+                    }
+                }
+        }
+
+        $create_tag_titles = $wpdb->get_col("SELECT title FROM ". $post_type_table_name . " WHERE dizeno_tag='Yes'");
+        // Default Tag
+        for ($i=0; $i < count($create_tag_titles); $i++) { 
+            foreach ($create_tag_titles as $taxonomy_title) {
+                $taxonomy_title_lower = strtolower($taxonomy_title);
+                $tag_labels = array(
+                    'name' => _x( $taxonomy_title.' Tag', 'taxonomy general name' ),
+                    'singular_name' => _x( $taxonomy_title.' Tag', 'taxonomy singular name' ),
+                    'search_items' =>  __( 'Search in '.$taxonomy_title_lower.' tags' ),
+                    'popular_items' => __( 'Popular '.$taxonomy_title_lower.' tags' ),
+                    'all_items' => __( 'All '.$taxonomy_title_lower.' tags' ),
+                    'most_used_items' => null,
+                    'parent_item' => null,
+                    'parent_item_colon' => null,
+                    'edit_item' => __( 'Edit '.$taxonomy_title_lower.' tag' ), 
+                    'update_item' => __( 'Update '.$taxonomy_title_lower.' tag' ),
+                    'add_new_item' => __( 'Add new '.$taxonomy_title_lower.' tag' ),
+                    'new_item_name' => __( 'New '.$taxonomy_title_lower.' tag name' ),
+                    'separate_items_with_commas' => __( 'Separate '.$taxonomy_title_lower.' tags with commas' ),
+                    'add_or_remove_items' => __( 'Add or remove '.$taxonomy_title_lower.' tags' ),
+                    'choose_from_most_used' => __( 'Choose from the most used '.$taxonomy_title_lower.' tags' ),
+                    'menu_name' => __( $taxonomy_title.' Tag' )
+                );
+                register_taxonomy($taxonomy_title_lower.' tag',$taxonomy_title_lower,array(
+                    'hierarchical' => false,
+                    'labels' => $tag_labels,
+                    'show_ui' => true,
+                    'show_admin_column' => true,
+                    'update_count_callback' => '_update_post_term_count',
+                    'query_var' => true,
+                    'rewrite' => array('slug' => $taxonomy_title_lower.'-tag' )
+                ));
+            }
+        }
+
+        // Custom tags
+        $tag_titles = $wpdb->get_results("SELECT title, dizeno_tag_list FROM ". $post_type_table_name ." WHERE   dizeno_tag='Yes'");
+        $tag_titles = json_decode(json_encode($tag_titles),true);
+        for ($i=0; $i < count($tag_titles); $i++) { 
+                $taxonomy_tag_title = $tag_titles[$i]['title'];
+
+                $tag_array = explode(",", $tag_titles[$i]['dizeno_tag_list']);
+                for ($j=0; $j < count($tag_array); $j++) {
+                    $tag = $tag_array[$j];
+                    if ($tag!='') {
+                        $taxonomy_tag_title_lower = strtolower($taxonomy_tag_title);
+                        $taxonomy_tag_lower = strtolower($tag);
+
+                        $tag_labels = array(
+                            'name' => _x( $tag.' Tag', 'taxonomy general name' ),
+                            'singular_name' => _x( $tag.' Tag', 'taxonomy singular name' ),
+                            'search_items' =>  __( 'Search in '.$taxonomy_tag_lower.' tags' ),
+                            'popular_items' => __( 'Popular '.$taxonomy_tag_lower.' tags' ),
+                            'all_items' => __( 'All '.$taxonomy_tag_lower.' tags' ),
+                            'most_used_items' => null,
+                            'parent_item' => null,
+                            'parent_item_colon' => null,
+                            'edit_item' => __( 'Edit '.$taxonomy_tag_lower.' tag' ), 
+                            'update_item' => __( 'Update '.$taxonomy_tag_lower.' tag' ),
+                            'add_new_item' => __( 'Add new '.$taxonomy_tag_lower.' tag' ),
+                            'new_item_name' => __( 'New '.$taxonomy_tag_lower.' tag name' ),
+                            'separate_items_with_commas' => __( 'Separate '.$taxonomy_tag_lower.' tags with commas' ),
+                            'add_or_remove_items' => __( 'Add or remove '.$taxonomy_tag_lower.' tags' ),
+                            'choose_from_most_used' => __( 'Choose from the most used '.$taxonomy_tag_lower.' tags' ),
+                            'menu_name' => __( $tag.' Tag' ),
+                        );
+                        register_taxonomy($taxonomy_tag_lower.' tag',$taxonomy_tag_title_lower,array(
+                            'hierarchical' => false,
+                            'labels' => $tag_labels,
+                            'show_ui' => true,
+                            'show_admin_column' => true,
+                            'update_count_callback' => '_update_post_term_count',
+                            'query_var' => true,
+                            'rewrite' => array('slug' => $taxonomy_tag_lower.'-tag' )
+                        ));
+                    }
+                }
+        }
 
 }
+        
 
 
 
@@ -436,39 +630,60 @@ function create_custom_post_type_templates() {
     $post_type_table_name = $wpdb->prefix . "post_type";
     $create_single_template = $wpdb->get_col("SELECT title FROM ". $post_type_table_name);
     
+    $product_template   = $wpdb->get_col("SELECT title FROM ". $post_type_table_name ." WHERE   dizeno_post_type ='product'");
+    $place_template     = $wpdb->get_col("SELECT title FROM ". $post_type_table_name ." WHERE   dizeno_post_type ='place'");
+    $event_template     = $wpdb->get_col("SELECT title FROM ". $post_type_table_name ." WHERE   dizeno_post_type ='event'");
     
-    foreach ($create_single_template as $key) {
-        // echo "<pre>";
-        // echo get_template_directory().'<br>';
-        $key = strtolower($key);
-        $single_template_name = 'single-'.$key.'.php';
-        // echo "<br>";
-        $archive_template_name = 'archive-'.$key.'.php';
-        // echo "<br>";
-        $content_template_name = 'content-'.$key.'.php';
-        // echo "<br>";
+    $product_template_file = dirname( __FILE__ ) . '/product-template.php';
+    $place_template_file = dirname( __FILE__ ) . '/place-template.php';
+    $event_template_file = dirname( __FILE__ ) . '/event-template.php';
 
-        $template_names = array($single_template_name,$archive_template_name,$content_template_name);
-        // echo print_r($template_names);
-        // echo "<br>";
+
+    foreach ($create_single_template as $post_name) {
+        $post_name = strtolower($post_name);
+        $single_template_name = 'single-'.$post_name.'.php';
+        $archive_template_name = 'archive-'.$post_name.'.php';
+        $content_template_name = 'content-'.$post_name.'.php';
+        $template_file_names = array($single_template_name,$archive_template_name,$content_template_name);
             
-            $template_dir = dirname(dirname( __FILE__ )) . '/dizeno-posts/'.$key;
+            $template_dir = dirname(dirname( __FILE__ )) . '/dizeno-posts/'.$post_name;
             
-            foreach ($template_names as $template) {
-                if(file_exists($template_dir.'/'.$template)) {
-                    $file_permission = 'r';
+            foreach ($template_file_names as $template_name) {
+                $template_file = $template_dir.'/'.$template_name;
+                if(file_exists($template_file)) {
+                    $file_permission = 'r+';
                 } else {
-                    $file_permission = 'w';
-                }
-                if (wp_mkdir_p($template_dir)) {
-                    if ($handle = fopen($template_dir.'/'.$template, $file_permission)) {
-                        
-                        fclose($handle);
-                    } else {
-                        echo "Could not create/open ".$template." file for writing.";
+                    $file_permission = 'w+';
+                    //chmod($template_name, 0777);
+                    if (wp_mkdir_p($template_dir)) {
+                        if ($handle = fopen($template_file, $file_permission)) {
+                            fclose($handle);
+                        } else {
+                            echo "Could not create/open ".$template_name." file for writing.";
+                        }
+                        if(substr($template_name, 0, 6)  == 'single') {
+                            foreach ($product_template as $product_template_name) {
+                                $product_template_name = 'single-'.strtolower($product_template_name).'.php';
+                                if ($template_name == $product_template_name) {
+                                    copy($product_template_file, $template_file);
+                                }   
+                            }
+                            foreach ($place_template as $place_template_name) {
+                                $place_template_name = 'single-'.strtolower($place_template_name).'.php';
+                                if ($template_name == $place_template_name) {
+                                    copy($place_template_file, $template_file);
+                                }                                    
+                            }
+                            foreach ($event_template as $event_template_name) {
+                                $event_template_name = 'single-'.strtolower($event_template_name).'.php';
+                                if ($template_name == $event_template_name) {
+                                    copy($event_template_file, $template_file);
+                                }                                       
+                            }
+                        }
                     }
-
                 }
+                
             }
         
         // echo "</pre>";
@@ -512,166 +727,9 @@ function get_archive_custom_post_type_template( $archive_template ) {
 add_filter( 'archive_template', 'get_archive_custom_post_type_template' ) ;
 
 
-// Add custom taxonomies
-add_action( 'init', 'dizeno_create_taxonomies',2);
-
-function dizeno_create_taxonomies() {
-    global $wpdb;
-    $post_type_table_name = $wpdb->prefix . "post_type";
-    // default category
-    $create_taxonomy_titles = $wpdb->get_col("SELECT title FROM ". $post_type_table_name ." WHERE dizeno_category='Yes'");
-    for ($i=0; $i < count($create_taxonomy_titles); $i++) { 
-        foreach ($create_taxonomy_titles as $taxonomy_title_default) {
-            $taxonomy_title_lower = strtolower($taxonomy_title_default);
-            $category_labels = array(
-                'name' => _x( $taxonomy_title_default.' Category', 'taxonomy general name' ),
-                'singular_name' => _x( $taxonomy_title_default.' Category', 'taxonomy singular name' ),
-                'search_items' =>  __( 'Search in '.$taxonomy_title_lower.' category' ),
-                'all_items' => __( 'All '.$taxonomy_title_lower.' category' ),
-                'most_used_items' => null,
-                'parent_item' => null,
-                'parent_item_colon' => null,
-                'edit_item' => __( 'Edit '.$taxonomy_title_lower.' category' ), 
-                'update_item' => __( 'Update '.$taxonomy_title_lower.' category' ),
-                'add_new_item' => __( 'Add new '.$taxonomy_title_lower.' category' ),
-                'new_item_name' => __( 'New '.$taxonomy_title_lower.' category' ),
-                'menu_name' => __( $taxonomy_title_default.' Category' ),
-            );  
-            register_taxonomy($taxonomy_title_lower.'-category',$taxonomy_title_lower,array(
-                'hierarchical' => true,
-                'labels' => $category_labels,
-                'show_ui' => true,
-                'query_var' => true,
-                'rewrite' => array('slug' => $taxonomy_title_lower.'-category' )
-            ));
-        }
-    }
-
-    // Custom category
-    $cat_titles = $wpdb->get_results("SELECT title, dizeno_category_list FROM ". $post_type_table_name ." WHERE   dizeno_category='Yes'");
-    $cat_titles = json_decode(json_encode($cat_titles),true);
-
-    for ($i=0; $i < count($cat_titles); $i++) { 
-            $taxonomy_title = $cat_titles[$i]['title'];
-
-            $cat_array = explode(",", $cat_titles[$i]['dizeno_category_list']);
-            for ($j=0; $j < count($cat_array); $j++) {
-                $cat = $cat_array[$j];
-                if ($cat!='') {
-                    $taxonomy_title_lower = strtolower($taxonomy_title);
-                    $taxonomy_cat_lower = strtolower($cat);
-
-                    $category_labels = array(
-                        'name' => _x( $cat.' Category', 'taxonomy general name' ),
-                        'singular_name' => _x( $cat.' Category', 'taxonomy singular name' ),
-                        'search_items' =>  __( 'Search in '.$taxonomy_cat_lower.' category' ),
-                        'all_items' => __( 'All '.$taxonomy_cat_lower.' category' ),
-                        'most_used_items' => null,
-                        'parent_item' => null,
-                        'parent_item_colon' => null,
-                        'edit_item' => __( 'Edit '.$taxonomy_cat_lower.' category' ), 
-                        'update_item' => __( 'Update '.$taxonomy_cat_lower.' category' ),
-                        'add_new_item' => __( 'Add new '.$taxonomy_cat_lower.' category' ),
-                        'new_item_name' => __( 'New '.$taxonomy_cat_lower.' category' ),
-                        'menu_name' => __( $cat.' Category' ),
-                    );  
-                    register_taxonomy($taxonomy_cat_lower.'-category',$taxonomy_title_lower,array(
-                        'hierarchical' => true,
-                        'labels' => $category_labels,
-                        'show_ui' => true,
-                        'query_var' => true,
-                        'rewrite' => array('slug' => $taxonomy_cat_lower.'-category' )
-                    ));
-                }
-            }
-
-    }
-
-    
 
 
-    $create_tag_titles = $wpdb->get_col("SELECT title FROM ". $post_type_table_name . " WHERE dizeno_tag='Yes'");
-    // Default Tag
-    for ($i=0; $i < count($create_tag_titles); $i++) { 
-        foreach ($create_tag_titles as $taxonomy_title) {
-            $taxonomy_title_lower = strtolower($taxonomy_title);
-            $tag_labels = array(
-                'name' => _x( $taxonomy_title.' Tag', 'taxonomy general name' ),
-                'singular_name' => _x( $taxonomy_title.' Tag', 'taxonomy singular name' ),
-                'search_items' =>  __( 'Search in '.$taxonomy_title_lower.' tags' ),
-                'popular_items' => __( 'Popular '.$taxonomy_title_lower.' tags' ),
-                'all_items' => __( 'All '.$taxonomy_title_lower.' tags' ),
-                'most_used_items' => null,
-                'parent_item' => null,
-                'parent_item_colon' => null,
-                'edit_item' => __( 'Edit '.$taxonomy_title_lower.' tag' ), 
-                'update_item' => __( 'Update '.$taxonomy_title_lower.' tag' ),
-                'add_new_item' => __( 'Add new '.$taxonomy_title_lower.' tag' ),
-                'new_item_name' => __( 'New '.$taxonomy_title_lower.' tag name' ),
-                'separate_items_with_commas' => __( 'Separate '.$taxonomy_title_lower.' tags with commas' ),
-                'add_or_remove_items' => __( 'Add or remove '.$taxonomy_title_lower.' tags' ),
-                'choose_from_most_used' => __( 'Choose from the most used '.$taxonomy_title_lower.' tags' ),
-                'menu_name' => __( $taxonomy_title.' Tag' ),
-            );
-            register_taxonomy($taxonomy_title_lower.' tag',$taxonomy_title_lower,array(
-                'hierarchical' => false,
-                'labels' => $tag_labels,
-                'show_ui' => true,
-                'update_count_callback' => '_update_post_term_count',
-                'query_var' => true,
-                'rewrite' => array('slug' => $taxonomy_title_lower.'-tag' )
-            ));
-        }
-    }
 
-    // Custom tags
-    $tag_titles = $wpdb->get_results("SELECT title, dizeno_tag_list FROM ". $post_type_table_name ." WHERE   dizeno_tag='Yes'");
-
-    $tag_titles = json_decode(json_encode($tag_titles),true);
-    
-    for ($i=0; $i < count($tag_titles); $i++) { 
-            $taxonomy_tag_title = $tag_titles[$i]['title'];
-
-            $tag_array = explode(",", $tag_titles[$i]['dizeno_tag_list']);
-            for ($j=0; $j < count($tag_array); $j++) {
-                $tag = $tag_array[$j];
-                if ($tag!='') {
-                    $taxonomy_tag_title_lower = strtolower($taxonomy_tag_title);
-                    $taxonomy_tag_lower = strtolower($tag);
-
-                    $tag_labels = array(
-                        'name' => _x( $tag.' Tag', 'taxonomy general name' ),
-                        'singular_name' => _x( $tag.' Tag', 'taxonomy singular name' ),
-                        'search_items' =>  __( 'Search in '.$taxonomy_tag_lower.' tags' ),
-                        'popular_items' => __( 'Popular '.$taxonomy_tag_lower.' tags' ),
-                        'all_items' => __( 'All '.$taxonomy_tag_lower.' tags' ),
-                        'most_used_items' => null,
-                        'parent_item' => null,
-                        'parent_item_colon' => null,
-                        'edit_item' => __( 'Edit '.$taxonomy_tag_lower.' tag' ), 
-                        'update_item' => __( 'Update '.$taxonomy_tag_lower.' tag' ),
-                        'add_new_item' => __( 'Add new '.$taxonomy_tag_lower.' tag' ),
-                        'new_item_name' => __( 'New '.$taxonomy_tag_lower.' tag name' ),
-                        'separate_items_with_commas' => __( 'Separate '.$taxonomy_tag_lower.' tags with commas' ),
-                        'add_or_remove_items' => __( 'Add or remove '.$taxonomy_tag_lower.' tags' ),
-                        'choose_from_most_used' => __( 'Choose from the most used '.$taxonomy_tag_lower.' tags' ),
-                        'menu_name' => __( $tag.' Tag' ),
-                    );
-                    register_taxonomy($taxonomy_tag_lower.' tag',$taxonomy_tag_title_lower,array(
-                        'hierarchical' => false,
-                        'labels' => $tag_labels,
-                        'show_ui' => true,
-                        'update_count_callback' => '_update_post_term_count',
-                        'query_var' => true,
-                        'rewrite' => array('slug' => $taxonomy_tag_lower.'-tag' )
-                    ));
-                }
-            }
-
-    }
-
-
-}
 
 
 

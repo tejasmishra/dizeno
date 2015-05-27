@@ -1,0 +1,15 @@
+#dizeno_category_li label{
+
+}
+
+.form-wrap #dizeno_category_li label,
+.form-wrap #dizeno_tag_li label {
+	display: inline-block;
+}
+
+.show {
+	display: block;
+}
+.hide {
+	display: none;
+}
